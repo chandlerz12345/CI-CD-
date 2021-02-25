@@ -1,0 +1,48 @@
+node{
+    
+    stage('Git Check'){
+        git branch: 'master', credentialsId: 'git-creds', url: 'https://github.com/chandlerz12345/devbops_blog_microservice.git'
+    }
+    stage('Curling Iron Finish Flask Intro'){
+        sh ''
+        sh 'curl -O https://bootstrap.pypa.io/get-pip.py'
+        sh 'python3 get-pip.py'
+        sh 'python3 -m pip install flask'
+        sh 'python3 -m pip install boto3'
+    }    
+
+    stage('DevBops Blog Test'){
+        sh 'python3 test.py'
+    }
+    
+    stage('Dock Build'){
+        sh 'docker build -t chandlerz12345/blogcicd .'
+    
+    }
+
+    stage('Image Push Dock'){
+
+        withCredentials([string(credentialsId: 'dock-pwd', variable: 'DockPass')]) {
+            sh "docker login -u chandlerz12345 -p ${DockPass}"
+    
+            }
+        
+        sh 'docker push chandlerz12345/blogcicd'
+    
+    }
+// When running this for the first time comment the remove out so it can build properly
+
+    stage('Private EC2 Dock'){
+      //  def dockerRm = 'docker rm -f blogcicd'
+      //  def dockerRmI = 'docker rmi chandlerz12345/blogcicd'
+        def dockerRun = 'docker run -p 8092:80 -d --name blogcicd chandlerz12345/blogcicd'
+        def startdocker = service docker start
+        sshagent(['user-ec2']) {
+         //   sh "ssh -o StrictHostKeyChecking=no ec2-user@172.25.11.10 ${dockerRm}"
+         //   sh "ssh -o StrictHostKeyChecking=no ec2-user@172.25.11.10 ${dockerRmI}"
+            sh "ssh -o StrictHostKeyChecking=no ec2-user@172.25.11.10 ${dockerRun}"
+           
+        }
+    
+    }   
+}
